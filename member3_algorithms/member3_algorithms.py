@@ -78,7 +78,7 @@ def _merge(left, right):
 # TERMINAL PROGRESS CHECK DEMO 
 
 if __name__ == "__main__":
-    print("--- 🔍 Member 3: Running Progress Check Demo ---")
+    print("--- Member 3: Running Progress Check Demo ---")
     
     # Test Binary Search
     mock_courses = [
@@ -97,4 +97,3 @@ if __name__ == "__main__":
     ]
     print(f"\nSorting Students by Year...")
     print(f"Result: {merge_sort_students(mock_students)}")
-    
