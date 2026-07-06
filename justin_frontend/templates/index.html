@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strathmore Registrar — Course Registration</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b" style="border-color:var(--ink); background:var(--ink);">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center font-display font-700 text-lg"
+           style="background:var(--gold); color:var(--ink);">SR</div>
+      <div>
+        <h1 class="font-display font-700 text-lg" style="color:var(--parchment);">Strathmore Registrar</h1>
+        <p class="font-mono text-[0.68rem] tracking-wide" style="color:var(--gold-soft);">STUDENT COURSE REGISTRATION LEDGER</p>
+      </div>
+    </div>
+    <div class="text-right hidden sm:block">
+      <p class="text-sm font-semibold" id="header-student-name" style="color:var(--parchment);">Loading…</p>
+      <p class="font-mono text-[0.7rem]" style="color:var(--gold-soft);">ID# {{ demo_student_id }}</p>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 pt-8 pb-16">
+
+  <div class="flex gap-1 px-1">
+    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="catalog">Course Catalog</button>
+    <button class="tab-btn" data-tab="waitlist">Waitlist</button>
+  </div>
+
+  <div class="card p-6 sm:p-8" style="border-top-left-radius:0;">
+
+    <!-- ============ DASHBOARD ============ -->
+    <section id="panel-dashboard" class="tab-panel active">
+      <div class="grid md:grid-cols-3 gap-5 mb-8">
+        <div class="card p-5 paper">
+          <p class="font-mono text-[0.68rem] tracking-wide" style="color:var(--slate);">UNITS ENROLLED</p>
+          <p class="font-display font-700 text-3xl mt-1" id="stat-units">–</p>
+        </div>
+        <div class="card p-5 paper">
+          <p class="font-mono text-[0.68rem] tracking-wide" style="color:var(--slate);">WAITLIST POSITIONS HELD</p>
+          <p class="font-display font-700 text-3xl mt-1" id="stat-waitlist">–</p>
+        </div>
+        <div class="card p-5 paper">
+          <p class="font-mono text-[0.68rem] tracking-wide" style="color:var(--slate);">DEGREE PROGRESS</p>
+          <div class="flex items-center gap-3 mt-3">
+            <div class="progress-track flex-1"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+            <span class="font-mono text-sm" id="progress-label">–</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="font-display font-700 text-xl mb-3">Current Schedule</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full ledger-table">
+          <thead>
+            <tr><th>Code</th><th>Title</th><th>Credits</th><th>Schedule</th><th>Status</th></tr>
+          </thead>
+          <tbody id="schedule-body">
+            <tr><td colspan="5" class="text-sm" style="color:var(--slate);">Loading schedule…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CATALOG ============ -->
+    <section id="panel-catalog" class="tab-panel">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <h2 class="font-display font-700 text-xl">Course Catalog</h2>
+        <input id="catalog-search" type="text" placeholder="Search by code or title…"
+               class="border rounded px-3 py-2 text-sm w-full sm:w-72"
+               style="border-color:var(--line); background:var(--parchment);">
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full ledger-table">
+          <thead>
+            <tr><th>Code</th><th>Title</th><th>Prerequisite</th><th>Seats</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="catalog-body">
+            <tr><td colspan="6" class="text-sm" style="color:var(--slate);">Loading catalog…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ WAITLIST ============ -->
+    <section id="panel-waitlist" class="tab-panel">
+      <h2 class="font-display font-700 text-xl mb-1">Waitlist Queue</h2>
+      <p class="text-sm mb-5" style="color:var(--slate);">First-in, first-out order. Position 1 is promoted automatically when a seat opens.</p>
+      <div class="space-y-6" id="waitlist-container">
+        <p class="text-sm" style="color:var(--slate);">Loading waitlists…</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div id="modal-backdrop">
+  <div class="modal-box p-6" id="modal-content"></div>
+</div>
+
+<script>
+/* ===========================================================
+   FRONTEND LOGIC (Member 5)
+   -----------------------------------------------------------
+   This file does NOT contain any business logic (no eligibility
+   checks, no queue math) - all of that lives in the Python
+   backend (data_structures.py, algorithms.py,
+   registration_system.py). The JavaScript below only:
+     1. fetch()es JSON from the Flask API routes in app.py
+     2. Renders that JSON into the ledger-styled tables/cards
+     3. Sends button clicks back to the API (register/drop)
+   This is the "thin client" pattern: the backend is the single
+   source of truth, the frontend just displays and collects input.
+=========================================================== */
+
+const STUDENT_ID = "{{ demo_student_id }}";
+
+// ---- helpers -------------------------------------------------------
+function stampFor(course){
+  if(!course.eligible) return {label:'Prereq Blocked', cls:'stamp-blocked'};
+  if(course.seats_taken >= course.capacity) return {label:'Seats Full', cls:'stamp-waitlisted'};
+  return {label:'Open', cls:'stamp-open'};
+}
+
+// ---- DASHBOARD -------------------------------------------------------
+async function loadDashboard(){
+  const res = await fetch(`/api/dashboard/${STUDENT_ID}`);
+  const data = await res.json();
+
+  document.getElementById('header-student-name').textContent = data.student.name;
+  document.getElementById('stat-units').textContent = data.schedule.length + ' / 6';
+  document.getElementById('stat-waitlist').textContent = data.waitlisted.length;
+
+  const pct = Math.round((data.student.completed_courses.length || 0) * 100 / 12); // 12 = rough total degree units
+  document.getElementById('progress-fill').style.width = Math.min(pct, 100) + '%';
+  document.getElementById('progress-label').textContent = Math.min(pct, 100) + '%';
+
+  const body = document.getElementById('schedule-body');
+  body.innerHTML = '';
+  data.schedule.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-mono">${c.code}</td>
+      <td>${c.title}</td>
+      <td>${c.credits}</td>
+      <td class="text-sm" style="color:var(--slate);">${c.schedule}</td>
+      <td><span class="stamp stamp-enrolled">Enrolled</span></td>`;
+    body.appendChild(tr);
+  });
+  data.waitlisted.forEach(w => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-mono">${w.code}</td>
+      <td>${w.title}</td>
+      <td>—</td>
+      <td class="text-sm" style="color:var(--slate);">—</td>
+      <td><span class="stamp stamp-waitlisted">Waitlisted · #${w.position}</span></td>`;
+    body.appendChild(tr);
+  });
+}
+
+// ---- CATALOG -------------------------------------------------------
+let catalogCache = [];
+
+async function loadCatalog(){
+  const res = await fetch(`/api/catalog?student_id=${STUDENT_ID}`);
+  catalogCache = await res.json();
+  renderCatalog(document.getElementById('catalog-search').value);
+}
+
+function renderCatalog(filter=''){
+  const body = document.getElementById('catalog-body');
+  body.innerHTML = '';
+  const f = filter.trim().toLowerCase();
+
+  catalogCache
+    .filter(c => c.code.toLowerCase().includes(f) || c.title.toLowerCase().includes(f))
+    .forEach(c => {
+      const st = stampFor(c);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="font-mono">${c.code}</td>
+        <td>${c.title}</td>
+        <td class="font-mono text-sm" style="color:var(--slate);">${c.prerequisite || '—'}</td>
+        <td>${c.seats_taken}/${c.capacity}</td>
+        <td><span class="stamp ${st.cls}">${st.label}</span></td>
+        <td class="text-right"><button class="btn-ghost" onclick="openModal('${c.code}')">Review</button></td>
+      `;
+      body.appendChild(tr);
+    });
+}
+
+// ---- REGISTRATION MODAL ---------------------------------------------
+function openModal(courseCode){
+  const c = catalogCache.find(x => x.code === courseCode);
+  const st = stampFor(c);
+  const backdrop = document.getElementById('modal-backdrop');
+  const content = document.getElementById('modal-content');
+
+  let actionHtml = '';
+  if(!c.eligible){
+    actionHtml = `<p class="text-sm mb-4" style="color:var(--brick);">Eligibility check failed: prerequisite <span class="font-mono">${c.missing_prereqs.join(', ')}</span> not on your transcript.</p>
+      <button class="btn-primary" disabled>Registration unavailable</button>`;
+  } else if(c.seats_taken >= c.capacity){
+    actionHtml = `<p class="text-sm mb-4" style="color:var(--slate);">No seats remaining (${c.waitlist_length} already waiting). Joining reserves your place in queue order.</p>
+      <button class="btn-primary" onclick="doRegister('${c.code}')">Join waitlist</button>`;
+  } else {
+    actionHtml = `<p class="text-sm mb-4" style="color:var(--forest);">Eligibility check passed${c.prerequisite ? ' — prerequisite ' + c.prerequisite + ' satisfied.' : '.'}</p>
+      <button class="btn-primary" onclick="doRegister('${c.code}')">Confirm registration</button>`;
+  }
+
+  content.innerHTML = `
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <p class="font-mono text-xs" style="color:var(--slate);">${c.code}</p>
+        <h3 class="font-display font-700 text-xl">${c.title}</h3>
+      </div>
+      <span class="stamp ${st.cls}">${st.label}</span>
+    </div>
+    ${actionHtml}
+    <div class="text-right mt-5">
+      <button class="btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  backdrop.classList.add('active');
+}
+function closeModal(){ document.getElementById('modal-backdrop').classList.remove('active'); }
+
+// POSTs to the real /api/register route -> hits Member 4's controller
+// -> Member 3's binary search + Member 2's DFS check + Member 1's Queue.
+async function doRegister(courseCode){
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({student_id: STUDENT_ID, course_code: courseCode})
+  });
+  const result = await res.json();
+  closeModal();
+  await Promise.all([loadDashboard(), loadCatalog(), loadWaitlist()]);
+  alert(result.message);  // simple feedback for the demo; swap for a toast later
+}
+
+// ---- WAITLIST -------------------------------------------------------
+async function loadWaitlist(){
+  const res = await fetch('/api/waitlist');
+  const data = await res.json();
+  const container = document.getElementById('waitlist-container');
+  container.innerHTML = '';
+
+  Object.entries(data).forEach(([code, info]) => {
+    const div = document.createElement('div');
+    const nodes = info.queue.map((name, i) => `
+      <div class="queue-node px-3 py-2 card" style="background:${i===0 ? 'var(--gold-soft)' : 'var(--parchment-dark)'}; ${i===0 ? 'border-color:var(--gold);' : ''}">
+        ${['①','②','③','④','⑤','⑥'][i] || (i+1)} ${name}
+      </div>`).join('');
+    div.innerHTML = `
+      <div class="flex items-center gap-2 mb-2">
+        <span class="font-mono font-700">${code}</span>
+        <span class="text-sm" style="color:var(--slate);">— ${info.title}</span>
+      </div>
+      <div class="flex flex-wrap gap-2">${nodes}</div>`;
+    container.appendChild(div);
+  });
+}
+
+// ---- TABS -------------------------------------------------------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('catalog-search').addEventListener('input', e => renderCatalog(e.target.value));
+
+// ---- INITIAL LOAD -------------------------------------------------------
+loadDashboard();
+loadCatalog();
+loadWaitlist();
+</script>
+
+</body>
+</html>
