@@ -1,9 +1,10 @@
-# BACKEND CONTROLLER 
+# MEMBER 4: BACKEND CONTROLLER - TERMINAL VERSION
+
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# Imports
+# Imports 
 from ivan_ds.waitlist_queue import WaitlistQueue
 from ivan_ds.course_list import RegisteredCoursesList
 from ivan_ds.std_hashmap import StudentHashMap
@@ -41,7 +42,6 @@ class RegistrationController:
             self.students.add_student(sid, name)
             self.student_data[sid] = {'year': year, 'gpa': gpa, 'completed': ['CS101'] if sid == 'S001' else []}
             self.student_courses[sid] = RegisteredCoursesList()
-            self.waitlists[sid] = WaitlistQueue(capacity=3)
         
         # Waitlists for courses
         for course in self.courses:
@@ -50,7 +50,7 @@ class RegistrationController:
     def get_prerequisites(self, course):
         return self.prereqs.get(course, [])
     
-    # MAIN FUNCTIONS
+    # FUNCTIONS 
     
     def register_student(self, student_id, course_code):
         """Register or waitlist"""
@@ -71,9 +71,13 @@ class RegistrationController:
             current = current.next
         
         # Count enrolled
-        enrolled = sum(1 for sid in self.student_courses 
-                      for c in iter_courses(self.student_courses[sid]) 
-                      if c.course_code == course_code)
+        enrolled = 0
+        for sid in self.student_courses:
+            c = self.student_courses[sid].head
+            while c:
+                if c.course_code == course_code:
+                    enrolled += 1
+                c = c.next
         
         if enrolled < self.courses[course_code]['capacity']:
             self.student_courses[student_id].add_course(course_code, self.courses[course_code]['name'])
@@ -109,9 +113,13 @@ class RegistrationController:
         """View all courses"""
         result = []
         for code, info in self.courses.items():
-            enrolled = sum(1 for sid in self.student_courses 
-                          for c in iter_courses(self.student_courses[sid]) 
-                          if c.course_code == code)
+            enrolled = 0
+            for sid in self.student_courses:
+                c = self.student_courses[sid].head
+                while c:
+                    if c.course_code == code:
+                        enrolled += 1
+                    c = c.next
             result.append({
                 'code': code,
                 'name': info['name'],
@@ -143,19 +151,11 @@ class RegistrationController:
         print("="*50 + "\n")
 
 
-# Helper function
-def iter_courses(course_list):
-    current = course_list.head
-    while current:
-        yield current
-        current = current.next
-
-
 def main():
     system = RegistrationController()
     system.show_status()
     
-    print("1. Register Parmenas for CS201:")
+    print("1. Register John for CS201:")
     print(system.register_student('S001', 'CS201'))
     
     print("\n2. Search for CS201:")
