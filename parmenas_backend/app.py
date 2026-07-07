@@ -1,114 +1,161 @@
-# BACKEND CONTROLLER - MAIN APP
-
-# Import 
+# BACKEND CONTROLLER 
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+# Imports
 from ivan_ds.waitlist_queue import WaitlistQueue
-from ivan_ds.course_list import CourseList
-from ivan_ds.std_hashmap import StudentHashmap
+from ivan_ds.course_list import RegisteredCoursesList
+from ivan_ds.std_hashmap import StudentHashMap
+
 from algorithms import dfs_check_prerequisites, binary_search_course, merge_sort_students
 
 
 class RegistrationController:
     def __init__(self):
-        self.students = StudentHashmap()
-        self.courses = CourseList()
+        self.students = StudentHashMap()
+        self.courses = {}
+        self.student_courses = {}
         self.waitlists = {}
+        self.prereqs = {}
+        self.student_data = {}
         self._load_dummy_data()
         print("✅ System Ready!")
     
     def _load_dummy_data(self):
-        students = {
-            'S001': {'name': 'John Doe', 'year': 4, 'gpa': 3.8, 'completed': ['CS101']},
-            'S002': {'name': 'Jane Smith', 'year': 3, 'gpa': 3.5, 'completed': []},
-            'S003': {'name': 'Alice Johnson', 'year': 2, 'gpa': 3.2, 'completed': []},
-            'S004': {'name': 'Bob Williams', 'year': 4, 'gpa': 2.9, 'completed': ['CS101', 'CS201']},
+        # Simple hardcoded data
+        self.courses = {
+            'CS101': {'name': 'Intro Programming', 'capacity': 2},
+            'CS201': {'name': 'Data Structures', 'capacity': 2},
+            'CS301': {'name': 'Algorithms', 'capacity': 1},
         }
-        for sid, data in students.items():
-            self.students.insert(sid, data)
+        self.prereqs = {'CS201': ['CS101'], 'CS301': ['CS201']}
         
-        courses = [
-            {'code': 'CS101', 'name': 'Intro Programming', 'capacity': 2},
-            {'code': 'CS201', 'name': 'Data Structures', 'capacity': 2},
-            {'code': 'CS301', 'name': 'Algorithms', 'capacity': 1},
-        ]
-        for course in courses:
-            self.courses.add_course(course)
+        # Students
+        for sid, name, year, gpa in [
+            ('S001', 'Parmenas Ngugi', 4, 3.8),
+            ('S002', 'Jane Smith', 3, 3.5),
+            ('S003', 'Alice Johnson', 2, 3.2),
+            ('S004', 'Bob Williams', 4, 2.9),
+        ]:
+            self.students.add_student(sid, name)
+            self.student_data[sid] = {'year': year, 'gpa': gpa, 'completed': ['CS101'] if sid == 'S001' else []}
+            self.student_courses[sid] = RegisteredCoursesList()
+            self.waitlists[sid] = WaitlistQueue(capacity=3)
         
-        self.courses.add_prerequisite('CS201', 'CS101')
-        self.courses.add_prerequisite('CS301', 'CS201')
-        
-        for course in self.courses.get_all_courses():
-            self.waitlists[course['code']] = WaitlistQueue()
+        # Waitlists for courses
+        for course in self.courses:
+            self.waitlists[course] = WaitlistQueue(capacity=3)
     
-    # === YOUR 5 MAIN FUNCTIONS ===
+    def get_prerequisites(self, course):
+        return self.prereqs.get(course, [])
+    
+    # MAIN FUNCTIONS
     
     def register_student(self, student_id, course_code):
-        if not self.students.get(student_id):
+        """Register or waitlist"""
+        if not self.students.find_student(student_id):
             return "Student not found"
-        if not self.courses.get_course(course_code):
+        if course_code not in self.courses:
             return "Course not found"
         
-        student = self.students.get(student_id)
-        if not dfs_check_prerequisites(course_code, student.get('completed', []), self.courses):
+        # Check prerequisites
+        if not dfs_check_prerequisites(course_code, self.student_data[student_id]['completed'], self):
             return "Missing prerequisites"
         
-        course = self.courses.get_course(course_code)
-        if len(self.courses.get_enrolled(course_code)) < course['capacity']:
-            self.courses.enroll_student(course_code, student_id)
+        # Check if already registered
+        current = self.student_courses[student_id].head
+        while current:
+            if current.course_code == course_code:
+                return "Already registered"
+            current = current.next
+        
+        # Count enrolled
+        enrolled = sum(1 for sid in self.student_courses 
+                      for c in iter_courses(self.student_courses[sid]) 
+                      if c.course_code == course_code)
+        
+        if enrolled < self.courses[course_code]['capacity']:
+            self.student_courses[student_id].add_course(course_code, self.courses[course_code]['name'])
             return "Registered!"
         else:
-            self.waitlists[course_code].enqueue(student_id)
-            return "Added to waitlist"
+            self.waitlists[course_code].enqueue(student_id, self.students.find_student(student_id))
+            return f"Added to waitlist (Position: {self.waitlists[course_code].size})"
     
     def search_course(self, course_code):
-        courses = self.courses.get_all_courses()
+        """Binary Search"""
+        courses = [{'code': c, 'name': info['name'], 'capacity': info['capacity']} 
+                   for c, info in self.courses.items()]
         courses.sort(key=lambda x: x['code'])
         return binary_search_course(courses, course_code)
     
     def drop_course(self, student_id, course_code):
-        if not self.courses.get_course(course_code):
+        """Drop and move waitlist"""
+        if course_code not in self.courses:
             return "Course not found"
-        self.courses.drop_student(course_code, student_id)
+        
+        self.student_courses[student_id].drop_course(course_code)
+        
         if not self.waitlists[course_code].is_empty():
             next_student = self.waitlists[course_code].dequeue()
-            self.courses.enroll_student(course_code, next_student)
-            return f"Dropped. {next_student} moved from waitlist"
+            if next_student:
+                self.student_courses[next_student.student_id].add_course(
+                    course_code, self.courses[course_code]['name']
+                )
+                return f"Dropped. {next_student.student_name} moved from waitlist"
         return "Dropped!"
     
     def get_all_courses(self):
+        """View all courses"""
         result = []
-        for course in self.courses.get_all_courses():
+        for code, info in self.courses.items():
+            enrolled = sum(1 for sid in self.student_courses 
+                          for c in iter_courses(self.student_courses[sid]) 
+                          if c.course_code == code)
             result.append({
-                'code': course['code'],
-                'name': course['name'],
-                'enrolled': len(self.courses.get_enrolled(course['code'])),
-                'waitlist': self.waitlists[course['code']].size()
+                'code': code,
+                'name': info['name'],
+                'enrolled': enrolled,
+                'waitlist': self.waitlists[code].size,
+                'seats_left': info['capacity'] - enrolled
             })
         return result
     
     def rank_students(self):
-        students = self.students.get_all()
-        return merge_sort_students(students)
+        """Rank students"""
+        student_list = []
+        for sid, data in self.student_data.items():
+            student_list.append({
+                'id': sid,
+                'name': self.students.find_student(sid) or 'Unknown',
+                'year': data['year'],
+                'gpa': data['gpa']
+            })
+        return merge_sort_students(student_list)
     
     def show_status(self):
+        """Show status"""
         print("\n" + "="*50)
         print("SYSTEM STATUS")
         print("="*50)
-        for course in self.courses.get_all_courses():
-            enrolled = len(self.courses.get_enrolled(course['code']))
-            wait = self.waitlists[course['code']].size()
-            print(f"{course['code']}: {enrolled}/{course['capacity']} enrolled, {wait} waiting")
+        for c in self.get_all_courses():
+            print(f"{c['code']}: {c['enrolled']}/{self.courses[c['code']]['capacity']} enrolled, {c['waitlist']} waiting")
         print("="*50 + "\n")
+
+
+# Helper function
+def iter_courses(course_list):
+    current = course_list.head
+    while current:
+        yield current
+        current = current.next
 
 
 def main():
     system = RegistrationController()
     system.show_status()
     
-    print("1. Register John for CS201:")
+    print("1. Register Parmenas for CS201:")
     print(system.register_student('S001', 'CS201'))
     
     print("\n2. Search for CS201:")
