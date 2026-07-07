@@ -1,8 +1,5 @@
-"""
-SNo. 220526: ALGORITHMS INTEGRATION
-DFS + Binary Search + Merge Sort
-"""
-
+# ALGORITHMS INTEGRATION
+# DFS + Binary Search + Merge Sort
 def dfs_check_prerequisites(course_code, completed_courses, prereq_tree, visited=None):
     """DFS: Check if student has ALL prerequisites"""
     if visited is None:

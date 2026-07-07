@@ -1,17 +1,13 @@
-"""
-SNo. 220526: BACKEND CONTROLLER - MAIN APP
-"""
+# BACKEND CONTROLLER - MAIN APP
+
 # Import 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'ivan_ds'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# Import files
-from waitlist_queue import WaitlistQueue
-from course_list import CourseList
-from std_hashmap import StudentHashmap
-
-# Import algorithms
+from ivan_ds.waitlist_queue import WaitlistQueue
+from ivan_ds.course_list import CourseList
+from ivan_ds.std_hashmap import StudentHashmap
 from algorithms import dfs_check_prerequisites, binary_search_course, merge_sort_students
 
 
@@ -24,7 +20,6 @@ class RegistrationController:
         print("✅ System Ready!")
     
     def _load_dummy_data(self):
-        # STUDENTS
         students = {
             'S001': {'name': 'John Doe', 'year': 4, 'gpa': 3.8, 'completed': ['CS101']},
             'S002': {'name': 'Jane Smith', 'year': 3, 'gpa': 3.5, 'completed': []},
@@ -34,7 +29,6 @@ class RegistrationController:
         for sid, data in students.items():
             self.students.insert(sid, data)
         
-        # COURSES
         courses = [
             {'code': 'CS101', 'name': 'Intro Programming', 'capacity': 2},
             {'code': 'CS201', 'name': 'Data Structures', 'capacity': 2},
@@ -43,11 +37,9 @@ class RegistrationController:
         for course in courses:
             self.courses.add_course(course)
         
-        # PREREQUISITES
         self.courses.add_prerequisite('CS201', 'CS101')
         self.courses.add_prerequisite('CS301', 'CS201')
         
-        # WAITLISTS
         for course in self.courses.get_all_courses():
             self.waitlists[course['code']] = WaitlistQueue()
     
