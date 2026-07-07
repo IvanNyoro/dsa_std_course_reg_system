@@ -21,7 +21,7 @@ class Student:
         return f"Student(ID: {self.student_id}, Name: '{self.name}', Year: {self.year_of_study})"
 
 
-# --- CORE ALGORITHMS ---
+# CORE ALGORITHMS 
 
 def binary_search_courses(course_list, target_id):
     """Custom Binary Search to locate a Course object by its unique ID."""
