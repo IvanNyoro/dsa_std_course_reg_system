@@ -56,5 +56,11 @@ class WaitlistQueue:
 
 # --- TEST CODE FOR PROGRESS CHECK ---
 if __name__ == "__main__":
-    dsa_waitlist = WaitlistQueue(capacity=2)
-    dsa_waitlist.enqueue("S001", "Alice")
+    q = WaitlistQueue(capacity=2)
+    print(q.enqueue("S001", "Alice"))
+    print(q.enqueue("S002", "Bob"))
+    print(q.enqueue("S003", "Charlie"))
+
+    dequeued_student = q.dequeue()
+    if dequeued_student:
+        print(f"Dequeued: {dequeued_student.student_name}")
